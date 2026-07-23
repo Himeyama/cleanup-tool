@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cleanup Tool</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="menubar"><b>&#129529; Cleanup Tool</b><span>Windows ディスク クリーンアップ</span></div>
+
+<div class="toolbar">
+  <select id="preset"><option value="">プリセット選択...</option></select>
+  <button id="btn-search">検索条件</button>
+  <button id="btn-scan" class="primary">スキャン開始</button>
+  <button id="btn-analyze">フォルダ解析</button>
+  <button id="btn-dup">重複を検索</button>
+  <button id="btn-pause" disabled>一時停止</button>
+  <button id="btn-resume" disabled>再開</button>
+  <button id="btn-cancel" disabled>停止</button>
+  <span class="spacer"></span>
+  <span id="progtext" style="color:var(--muted)"></span>
+  <button id="btn-settings">設定</button>
+  <button id="btn-delete" class="danger" disabled>削除</button>
+</div>
+
+<div class="main">
+  <div class="left">
+    <h3>カテゴリ</h3>
+    <div id="cats"></div>
+  </div>
+
+  <div class="center">
+    <div id="junk-view">
+      <div class="listhead">
+        <div class="c c-chk"><input type="checkbox" id="chk-all" title="全選択"></div>
+        <div class="c c-thumb"></div>
+        <div class="c c-name" data-sort="name">名前</div>
+        <div class="c c-size" data-sort="size">サイズ</div>
+        <div class="c c-date" data-sort="mtimeMs">更新日時</div>
+        <div class="c c-cat" data-sort="category">カテゴリ</div>
+        <div class="c c-path" data-sort="path">パス</div>
+      </div>
+      <div class="viewport" id="viewport">
+        <div class="sizer" id="sizer"><div class="rows" id="rows"></div></div>
+      </div>
+    </div>
+    <div id="dup-view">
+      <div id="dup-empty" class="dup-empty">「重複を検索」で対象フォルダを指定してください</div>
+      <div id="dup-groups"></div>
+    </div>
+  </div>
+
+  <div class="resizer" id="resizer"></div>
+
+  <div class="right" id="right-panel">
+    <h3>プレビュー</h3>
+    <div class="preview" id="preview">ファイルを選択</div>
+    <h3>ファイル情報</h3>
+    <div class="info" id="info"><div>未選択</div></div>
+  </div>
+</div>
+
+<div class="statusbar" id="statusbar">
+  <span class="dot"></span>
+  <span id="st-state">待機中</span>
+  <span>検出: <b id="st-count">0</b> 件</span>
+  <span>合計: <b id="st-size">0 B</b></span>
+  <span>選択: <b id="st-sel">0</b> 件 / <b id="st-selsize">0 B</b></span>
+</div>
+
+<!-- 検索条件モーダル -->
+<div class="overlay" id="ov-search">
+  <div class="modal">
+    <h2>検索条件</h2>
+    <div class="grid">
+      <label class="full">ファイル名を含む<input type="text" id="f-name"></label>
+      <label>拡張子 (カンマ区切り)<input type="text" id="f-ext" placeholder=".tmp,.log"></label>
+      <label>パスを含む<input type="text" id="f-path"></label>
+      <label>ワイルドカード<input type="text" id="f-wild" placeholder="*.tmp"></label>
+      <label>正規表現<input type="text" id="f-regex"></label>
+      <label>最小サイズ(MB)<input type="number" id="f-smin" min="0"></label>
+      <label>最大サイズ(MB)<input type="number" id="f-smax" min="0"></label>
+      <label>更新日時 以降<input type="date" id="f-mfrom"></label>
+      <label>更新日時 以前<input type="date" id="f-mto"></label>
+      <label>アクセス日時 以降<input type="date" id="f-afrom"></label>
+      <label>アクセス日時 以前<input type="date" id="f-ato"></label>
+      <label>作成日時 以降<input type="date" id="f-bfrom"></label>
+      <label>作成日時 以前<input type="date" id="f-bto"></label>
+    </div>
+    <div class="chk-row">
+      <label><input type="checkbox" id="f-hidden"> 隠しファイルを含む</label>
+      <label><input type="checkbox" id="f-system"> システムファイルを含む</label>
+    </div>
+    <div class="actions">
+      <button id="s-reset">クリア</button>
+      <button id="s-close" class="primary">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<!-- フォルダ解析モーダル -->
+<div class="overlay" id="ov-analyze">
+  <div class="modal">
+    <h2>フォルダを指定して解析</h2>
+    <p style="color:var(--muted);margin:0 0 8px">解析するフォルダのパスを入力してください（1行に1つ）。配下を再帰的に一覧化します。</p>
+    <div id="analyze-quick" class="dup-quick"></div>
+    <div style="margin-bottom:6px"><button id="analyze-browse">&#128193; フォルダを選択...</button></div>
+    <textarea id="analyze-roots" rows="3" style="width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:12px;font-family:inherit" placeholder="C:\\Users\\...\\Pictures&#10;D:\\data"></textarea>
+    <p style="color:var(--muted);font-size:11px;margin:8px 0 0">「検索条件」で設定した拡張子・サイズ・日時フィルタも適用されます。</p>
+    <div class="actions">
+      <button id="analyze-cancel-btn">キャンセル</button>
+      <button id="analyze-start" class="primary">解析開始</button>
+    </div>
+  </div>
+</div>
+
+<!-- 重複検索モーダル -->
+<div class="overlay" id="ov-dup">
+  <div class="modal">
+    <h2>重複ファイルの検索</h2>
+    <p style="color:var(--muted);margin:0 0 8px">対象フォルダのパスを入力してください（1行に1つ）。例: C:\\Users\\you\\Pictures</p>
+    <div id="dup-quick" class="dup-quick"></div>
+    <div style="margin-bottom:6px"><button id="dup-browse">&#128193; フォルダを選択...</button></div>
+    <textarea id="dup-roots" rows="3" style="width:100%;background:var(--panel2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:12px;font-family:inherit" placeholder="C:\\Users\\...\\Pictures&#10;C:\\Users\\...\\Downloads"></textarea>
+    <div class="chk-row" style="margin-top:10px">
+      <label><input type="checkbox" id="dup-exact" checked> 完全一致の重複（全ファイル）</label>
+      <label><input type="checkbox" id="dup-similar" checked> 類似画像</label>
+    </div>
+    <label style="display:flex;flex-direction:row;align-items:center;gap:8px;color:var(--muted);margin-top:10px">
+      類似のしきい値
+      <input type="range" id="dup-threshold" min="0" max="20" value="8" style="flex:1">
+      <span id="dup-threshold-val" style="color:var(--text);width:70px">8 (標準)</span>
+    </label>
+    <p style="color:var(--muted);font-size:11px;margin:6px 0 0">小さいほど厳密（ほぼ同一のみ）、大きいほど緩く似た画像も検出。</p>
+    <div class="actions">
+      <button id="dup-cancel-btn">キャンセル</button>
+      <button id="dup-start" class="primary">検索開始</button>
+    </div>
+  </div>
+</div>
+
+<!-- フォルダ選択（ブラウザ）モーダル -->
+<div class="overlay" id="ov-browse">
+  <div class="modal" style="width:520px">
+    <h2>フォルダを選択</h2>
+    <div class="browse-path" id="browse-path">PC</div>
+    <div class="browse-list" id="browse-list"></div>
+    <div class="actions">
+      <button id="browse-up">&#8593; 上へ</button>
+      <span style="flex:1"></span>
+      <button id="browse-cancel">キャンセル</button>
+      <button id="browse-pick" class="primary">このフォルダを選択</button>
+    </div>
+  </div>
+</div>
+
+<!-- 設定モーダル -->
+<div class="overlay" id="ov-settings">
+  <div class="modal">
+    <h2>設定</h2>
+    <div class="grid">
+      <label class="full">削除方式
+        <select id="set-delmode">
+          <option value="trash">ゴミ箱へ移動（復元可能）</option>
+          <option value="permanent" selected>完全削除（復元不可・既定）</option>
+        </select>
+      </label>
+    </div>
+    <div class="actions"><button id="set-close" class="primary">閉じる</button></div>
+  </div>
+</div>
+
+<!-- 削除確認モーダル -->
+<div class="overlay" id="ov-delete">
+  <div class="modal">
+    <h2>削除の確認</h2>
+    <p class="big"><b id="del-count">0</b> 件 / <b id="del-size">0 B</b></p>
+
+    <div id="del-confirm">
+      <label class="chk-one"><span>ゴミ箱に移動せず完全に削除する（復元不可）</span><span class="toggle"><input type="checkbox" id="del-permanent"><span class="slider"></span></span></label>
+      <p style="color:var(--danger)">この操作を実行しますか？</p>
+      <div class="actions">
+        <button id="del-cancel">キャンセル</button>
+        <button id="del-ok" class="danger">削除する</button>
+      </div>
+    </div>
+
+    <div id="del-progress" style="display:none">
+      <div class="pbar"><div class="pbar-fill" id="del-bar"></div></div>
+      <p id="del-ptext" style="color:var(--muted)">削除中... 0%</p>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="ov-lightbox">
+  <img id="lightbox-img" alt="拡大プレビュー">
+</div>
+
+<div class="ctx-menu" id="ctx-menu">
+  <button type="button" id="ctx-delete" class="danger">削除</button>
+</div>
+
+<script src="/client.js"></script>
+</body>
+</html>

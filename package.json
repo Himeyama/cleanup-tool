@@ -1,0 +1,32 @@
+{
+  "name": "cleanup-tool",
+  "version": "1.0.0",
+  "description": "Windows ディスククリーンアップツール（HTTP UI + Worker Threads によるバックグラウンドスキャン）",
+  "license": "MIT",
+  "os": [
+    "win32"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "bin": {
+    "cleanup-tool": "bin/cleanup-tool.js"
+  },
+  "main": "src/main.js",
+  "files": [
+    "bin",
+    "src",
+    "public"
+  ],
+  "keywords": [
+    "windows",
+    "cleanup",
+    "disk-space",
+    "duplicate-finder",
+    "cli"
+  ],
+  "scripts": {
+    "start": "node bin/cleanup-tool.js"
+  },
+  "dependencies": {}
+}
