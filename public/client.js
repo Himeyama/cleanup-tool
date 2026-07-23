@@ -754,6 +754,52 @@ $('dup-browse').addEventListener('click', function(){ openBrowse('dup-roots'); }
   });
 })();
 
+/* ==== 列幅リサイズ ==== */
+(function(){
+  var COLS=['size','date','cat','path'];
+  var minW=40, maxW=600;
+  var root=document.documentElement;
+  var saved={};
+  try{ saved=JSON.parse(localStorage.getItem('colWidths')||'{}'); }catch(e){}
+  for(var i=0;i<COLS.length;i++){
+    var c=COLS[i], w=parseInt(saved[c],10);
+    if(w>=minW && w<=maxW) root.style.setProperty('--col-'+c, w+'px');
+  }
+  var dragging=null, startX=0, startW=0;
+  Array.prototype.forEach.call(document.querySelectorAll('.col-resize-handle'), function(handle){
+    handle.addEventListener('click', function(e){ e.stopPropagation(); });
+    handle.addEventListener('mousedown', function(e){
+      e.stopPropagation(); e.preventDefault();
+      dragging=handle.getAttribute('data-col');
+      startX=e.clientX;
+      var cell=handle.parentElement;
+      startW=cell.getBoundingClientRect().width;
+      handle.classList.add('dragging');
+      document.body.style.userSelect='none';
+    });
+  });
+  document.addEventListener('mousemove', function(e){
+    if(!dragging) return;
+    var w=startW+(e.clientX-startX);
+    if(w<minW) w=minW;
+    if(w>maxW) w=maxW;
+    root.style.setProperty('--col-'+dragging, w+'px');
+  });
+  document.addEventListener('mouseup', function(){
+    if(!dragging) return;
+    var handle=document.querySelector('.col-resize-handle[data-col="'+dragging+'"]');
+    if(handle) handle.classList.remove('dragging');
+    document.body.style.userSelect='';
+    var cur={};
+    for(var i=0;i<COLS.length;i++){
+      var v=getComputedStyle(root).getPropertyValue('--col-'+COLS[i]);
+      if(v) cur[COLS[i]]=parseInt(v,10);
+    }
+    localStorage.setItem('colWidths', JSON.stringify(cur));
+    dragging=null;
+  });
+})();
+
 /* ==== 初期化 ==== */
 fetch('/api/presets').then(function(r){return r.json();}).then(function(d){
   CATEGORIES=d.categories; renderCats();
